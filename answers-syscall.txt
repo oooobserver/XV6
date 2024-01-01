@@ -1,0 +1,25 @@
+1
+The `usertrap ()` function at kernel/trap.c called.
+
+2
+Value: 7
+In `initcode.S` code, the program load the `SYS_exec` which is the number of a system call into `trapframe->a7`.
+The whole process is set the trapframe for a user thread to transit to kernel thread and execute the trap. 
+Mainly set up the function's parameters: `exec(init, argv)`.
+
+3
+The `sstatus` register:
+| SXL | UXL | SD |  0 |  XS |  FS |  MPP |   SPP   |      MPIE       |      SPIE       |       UPIE      |
+
+The result is 0b00100010, indicate that the previous mode is the `machine mode`.
+
+4
+`lw	a3,0(zero)`, register `a3` represent the num
+
+5
+Because the program try to load the word at the address 0 to the register a3. The address 0 is unused, and not mapped into the kernel memory.
+Yes, the `scause 0x000000000000000d` indicates that there was an issue with a load instruction in supervisor mode, such as attempting to load 
+from an invalid memory address or a region of memory that the supervisor mode does not have permission to access.
+
+6
+Name: "initcode\000\000\000\000\000\000\000", PID: 1.
