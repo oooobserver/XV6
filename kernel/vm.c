@@ -449,3 +449,37 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+
+void vmprint(pagetable_t pt){
+  printf("page table %p\n", pt);
+  // The highest page table
+  for(int i = 0; i < 512; i++){
+    pte_t middle_pte = pt[i];
+    if (middle_pte == 0)
+      continue;
+
+    pagetable_t middle_pt = (pagetable_t)PTE2PA(middle_pte);
+    printf("  ..%d: pte %p pa %p\n", i, middle_pte, middle_pt);
+    // Middle level
+    for (int j = 0; j < 512; j++){
+      pte_t lowest_pte = middle_pt[j];
+      if (lowest_pte == 0)
+        continue;
+
+      pagetable_t lowest_pt = (pagetable_t)PTE2PA(lowest_pte);
+      printf("  .. ..%d: pte %p pa %p\n", j, lowest_pte, lowest_pt);
+      // Lowest
+      for (int k = 0; k< 512; k++){
+        pte_t actual_pte = lowest_pt[k];
+        if (actual_pte == 0)
+          continue;
+
+        pagetable_t actual_pt = (pagetable_t)PTE2PA(actual_pte);
+        printf("  .. .. ..%d: pte %p pa %p\n", k, actual_pte, actual_pt);
+      }
+    }
+  }
+}
+
+

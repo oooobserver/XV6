@@ -71,13 +71,39 @@ sys_sleep(void)
 
 
 #ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
-{
-  // lab pgtbl: your code here.
+int sys_pgaccess(void){
+  uint64 start;
+  int num;
+  uint64 output;
+
+  int res = 0;
+  argaddr(0, &start);
+  argint(1, &num);
+  argaddr(2, &output);
+
+  if (num > 32){
+    printf("sys_pgaccess: too many");
+    return -1;
+  }
+
+  for (int i=0; i < num; i++){
+    uint64 cur_pos = start + i*4096;
+    pte_t *pte = walk(myproc()->pagetable, cur_pos, 0);
+    if(*pte & PTE_A)
+      res |= (1 << i);
+
+    *pte &= ~PTE_A;
+  }
+
+  copyout(myproc()->pagetable, output, (char *)&res, sizeof(res));
   return 0;
 }
 #endif
+
+
+
+
+
 
 uint64
 sys_kill(void)
@@ -100,3 +126,9 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+
+
+
+

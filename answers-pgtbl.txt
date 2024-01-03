@@ -1,0 +1,13 @@
+1
+Based on we can store some fixed information to the read-ony page,
+we can also add `sys_fstat` to store the old file information.
+
+2
+Structure:
+- program test and data
+- stack and the guard page, init the stack with the arguments
+- heap
+- trapframe
+- trampoline
+
+For each page, its permission bits are: RSW, dirty bit, access bit, global, user, executable, writeable, readable, valid
