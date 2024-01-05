@@ -81,6 +81,7 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -104,4 +105,45 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  int alarm_interval;
+  uint64 alarm_handle_fn;
+  int ticks_left;
+
+  int handler_lock;
+
+  uint64 saved_epc;          
+  uint64 saved_ra;
+  uint64 saved_sp;
+  uint64 saved_gp;
+
+  uint64 saved_t0;
+  uint64 saved_t1;
+  uint64 saved_t2;
+  uint64 saved_t3;
+  uint64 saved_t4;
+  uint64 saved_t5;
+  uint64 saved_t6;
+
+  uint64 saved_a0;
+  uint64 saved_a1;
+  uint64 saved_a2;
+  uint64 saved_a3;
+  uint64 saved_a4;
+  uint64 saved_a5;
+  uint64 saved_a6;
+  uint64 saved_a7;
+  
+  uint64 saved_s0;
+  uint64 saved_s1;
+  uint64 saved_s2;
+  uint64 saved_s3;
+  uint64 saved_s4;
+  uint64 saved_s5;
+  uint64 saved_s6;
+  uint64 saved_s7;
+  uint64 saved_s8;
+  uint64 saved_s9;
+  uint64 saved_s10;
+  uint64 saved_s11;
 };

@@ -1,0 +1,14 @@
+1
+`a0-a7` registers hold the value of the function parameters, `a2` hold the value 13
+
+The call to f(x) is optimized by the compiler and become this: `li	a1,12`
+
+64a
+
+38
+
+He110 World, unsigned int i = 0x726c6400, no
+
+y will print a random number, becasue the statement doen't set the value of y, the compiler will put the value after `3` to the y
+
+
