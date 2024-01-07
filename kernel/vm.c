@@ -315,20 +315,29 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
+
     pa = PTE2PA(*pte);
+    
+    // Add ref
+    acquire(&ref_lock);
+    ref[pa >> 12] += 1;
+    release(&ref_lock);
+
+    // Reset permission for both
+    // Add COW bit for both
+    // Note here I don't check if it originally can write
+    *pte &= ~PTE_W;  
+    *pte |= PTE_COW; 
+
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
     }
   }
@@ -365,11 +374,40 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     va0 = PGROUNDDOWN(dstva);
     if(va0 >= MAXVA)
       return -1;
+
     pte = walk(pagetable, va0, 0);
-    if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
-       (*pte & PTE_W) == 0)
-      return -1;
     pa0 = PTE2PA(*pte);
+
+    if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
+      return -1;
+    if ((*pte & PTE_W) == 0 && (*pte & PTE_COW) == 0)
+      return -1;
+
+    // COW page handle
+    if (*pte & PTE_COW){
+      // allocate a new page
+      uint64 new_pa = (uint64) kalloc(); 
+
+      if (new_pa == 0){
+        return -1;
+      } else {
+        // Copy the old page to the new page
+        memmove((char*)new_pa, (char*)pa0, PGSIZE);
+
+        // Need to created before uvmunmap, because it will clear the PTE
+        uint flags = PTE_FLAGS(*pte);
+
+        uvmunmap(pagetable, va0, 1, 1);
+        flags |= PTE_W;
+        flags &= ~PTE_COW;
+
+        // Map
+        mappages(pagetable,  va0, PGSIZE, new_pa, flags);
+        pa0 = new_pa;
+      }
+    } 
+
+
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

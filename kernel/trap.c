@@ -29,10 +29,43 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
-//
-// handle an interrupt, exception, or system call from user space.
-// called from trampoline.S
-//
+
+int cow_handler(pagetable_t pagetable, uint64 va){
+  // If exceed max VM, killed
+  if (va >= MAXVA) 
+    return -1;
+
+  pte_t *pte = walk(pagetable, va, 0);
+  if (pte == 0) 
+    return -1;
+
+  // Check permissions
+  if ((*pte & PTE_U) == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_COW) == 0)
+    return -1;
+
+  // allocate a new page
+  uint64 pa = PTE2PA(*pte);
+  uint64 new_pa = (uint64) kalloc(); 
+
+  // If no left memory, killed
+  if (new_pa == 0){
+    return -1;
+  } 
+
+  // Copy the page
+  memmove((char*)new_pa, (char*)pa, PGSIZE); 
+
+  uint flags = PTE_FLAGS(*pte);
+  flags |= PTE_W;
+  flags &= ~PTE_COW;
+
+  // Unmap the old page
+  uvmunmap(pagetable, PGROUNDDOWN(va), 1, 1);
+  mappages(pagetable,  PGROUNDDOWN(va), PGSIZE, new_pa, flags);
+
+  return 0;
+}
+
 void
 usertrap(void)
 {
@@ -68,9 +101,17 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+    // Write page fault
+    if (r_scause() == 15){
+      uint64 va = r_stval();
+
+      if (cow_handler(p->pagetable, va) != 0){
+        p->killed = 1;
+        // printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        // printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+        // setkilled(p);
+      }
+    }
   }
 
   if(killed(p))
