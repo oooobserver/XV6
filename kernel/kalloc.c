@@ -34,6 +34,11 @@ kinit()
   freerange(end, (void*)PHYSTOP);
 }
 
+
+// Start: 0x80241d60, rounddown: 0x80242000 (2149851136)
+// End: 0x88000000 (2281701376)
+// Total aviaible mem: 131850240, page nums: 32190
+
 void
 freerange(void *pa_start, void *pa_end)
 {
