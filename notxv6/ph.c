@@ -17,6 +17,8 @@ struct entry *table[NBUCKET];
 int keys[NKEYS];
 int nthread = 1;
 
+pthread_mutex_t locks[NBUCKET];      
+
 
 double
 now()
@@ -26,20 +28,24 @@ now()
  return tv.tv_sec + tv.tv_usec / 1000000.0;
 }
 
-static void 
-insert(int key, int value, struct entry **p, struct entry *n)
-{
+
+
+
+static void insert(int key, int value, struct entry **p, struct entry *n){
   struct entry *e = malloc(sizeof(struct entry));
+
   e->key = key;
   e->value = value;
   e->next = n;
   *p = e;
 }
 
-static 
-void put(int key, int value)
-{
+
+
+static  void put(int key, int value){
   int i = key % NBUCKET;
+  
+  pthread_mutex_lock(&locks[i]);
 
   // is the key already present?
   struct entry *e = 0;
@@ -55,13 +61,16 @@ void put(int key, int value)
     insert(key, value, &table[i], table[i]);
   }
 
+  pthread_mutex_unlock(&locks[i]);
 }
+
+
+
 
 static struct entry*
 get(int key)
-{
+{  
   int i = key % NBUCKET;
-
 
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
@@ -71,14 +80,15 @@ get(int key)
   return e;
 }
 
-static void *
-put_thread(void *xa)
-{
+static void * put_thread(void *xa){
   int n = (int) (long) xa; // thread number
   int b = NKEYS/nthread;
 
+
   for (int i = 0; i < b; i++) {
-    put(keys[b*n + i], n);
+    int tmp = b*n + i;
+    put(keys[tmp], n);
+    
   }
 
   return NULL;
@@ -105,6 +115,9 @@ main(int argc, char *argv[])
   void *value;
   double t1, t0;
 
+  for (int i = 0; i < NBUCKET; i++){
+    pthread_mutex_init(&locks[i], NULL);
+  }
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s nthreads\n", argv[0]);
@@ -148,3 +161,5 @@ main(int argc, char *argv[])
   printf("%d gets, %.3f seconds, %.0f gets/second\n",
          NKEYS*nthread, t1 - t0, (NKEYS*nthread) / (t1 - t0));
 }
+
+

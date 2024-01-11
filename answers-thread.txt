@@ -1,0 +1,15 @@
+// Really nigga? enough text, are you fucking serious
+
+1
+Because the caller registers are already saved while calling, it is caller's duty to save these registers.
+
+2
+Because in one thread situation, there is a grantauee that onr time only execute onw `put` function. But tings are different
+between multiple threads, there could be multiple `put` calls at one time, and they could operate on a same index of the table.
+
+```C
+    int i = key % NBUCKET;
+```
+
+The index could be the same in various `put` call.
+
