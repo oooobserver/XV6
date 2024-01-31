@@ -45,16 +45,16 @@ e1000_init(uint32 *xregs)
     tx_ring[i].status = E1000_TXD_STAT_DD;
     tx_mbufs[i] = 0;
   }
-  regs[E1000_TDBAL] = (uint64) tx_ring;
+  regs[E1000_TDBAL] = (uint64) tx_ring; // Set the address
   if(sizeof(tx_ring) % 128 != 0)
     panic("e1000");
-  regs[E1000_TDLEN] = sizeof(tx_ring);
-  regs[E1000_TDH] = regs[E1000_TDT] = 0;
+  regs[E1000_TDLEN] = sizeof(tx_ring); // Set the length
+  regs[E1000_TDH] = regs[E1000_TDT] = 0; // Set the head and tail pointer
   
   // [E1000 14.4] Receive initialization
   memset(rx_ring, 0, sizeof(rx_ring));
   for (i = 0; i < RX_RING_SIZE; i++) {
-    rx_mbufs[i] = mbufalloc(0);
+    rx_mbufs[i] = mbufalloc(0); 
     if (!rx_mbufs[i])
       panic("e1000");
     rx_ring[i].addr = (uint64) rx_mbufs[i]->head;
@@ -92,29 +92,58 @@ e1000_init(uint32 *xregs)
   regs[E1000_IMS] = (1 << 7); // RXDW -- Receiver Descriptor Write Back
 }
 
-int
-e1000_transmit(struct mbuf *m)
-{
-  //
-  // Your code here.
-  //
-  // the mbuf contains an ethernet frame; program it into
-  // the TX descriptor ring so that the e1000 sends it. Stash
-  // a pointer so that it can be freed after sending.
-  //
+int e1000_transmit(struct mbuf *m){
+  acquire(&e1000_lock);
+  uint64 offset =  regs[E1000_TDT];
+  struct tx_desc* td = &tx_ring[offset];
+
+  if (!(td->status & E1000_TXD_STAT_DD)) {
+      release(&e1000_lock);
+      return -1; 
+  }
+
+
+  if(tx_mbufs[offset])
+    mbuffree(tx_mbufs[offset]);
   
+  td->addr = (uint64)m->head;
+  td->length = m->len;
+  td->cmd = E1000_TXD_CMD_RS;
+  td->cmd |= E1000_TXD_CMD_EOP;
+
+  tx_mbufs[offset] = m;
+
+  regs[E1000_TDT] = (offset + 1) % TX_RING_SIZE;
+  release(&e1000_lock);
   return 0;
 }
 
-static void
-e1000_recv(void)
-{
-  //
-  // Your code here.
-  //
-  // Check for packets that have arrived from the e1000
-  // Create and deliver an mbuf for each packet (using net_rx()).
-  //
+static void e1000_recv(void){
+  uint64 offset =  (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+  struct rx_desc * rd = &rx_ring[offset];
+
+  while(rd->status & E1000_RXD_STAT_DD){
+    acquire(&e1000_lock);
+
+    struct mbuf *buf = rx_mbufs[offset];
+    // Update the length of the mbuf
+    mbufput(buf, rd->length);
+    
+    rx_mbufs[offset] = mbufalloc(0);
+    if (!rx_mbufs[offset])
+      panic("e1000");
+    rd->addr = (uint64) rx_mbufs[offset]->head;
+    rd->status = 0;
+
+    regs[E1000_RDT] = offset;
+    release(&e1000_lock);
+
+    net_rx(buf);
+    
+    offset = (offset + 1) % RX_RING_SIZE;
+    rd = &rx_ring[offset];
+  }
+
 }
 
 void
