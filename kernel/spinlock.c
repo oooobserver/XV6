@@ -95,8 +95,11 @@ acquire(struct spinlock *lk)
 void
 release(struct spinlock *lk)
 {
-  if(!holding(lk))
-    panic("release");
+  if(!holding(lk)){
+      panic("release");
+      // printf("release!\n");
+      // return;
+  }
 
   lk->cpu = 0;
 
