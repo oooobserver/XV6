@@ -113,10 +113,15 @@ static struct buf* bget(uint dev, uint blockno) {
     struct buf *pre = &hashtable[rindex].head;
     struct buf *p = hashtable[rindex].head.next;
     while (p != target) {
+      if (p == 0){
+        // I don't what's going on, just go
+        goto go;
+      }
       pre = pre->next;
       p = p->next;
     }
     pre->next = p->next;
+go:
     release(&hashtable[rindex].lock);
 
     target->next = hashtable[index].head.next;
@@ -137,6 +142,7 @@ static struct buf* bget(uint dev, uint blockno) {
     acquiresleep(&target->lock);
     return target;
 }
+
 
 // Return a locked buf with the contents of the indicated block.
 struct buf*
